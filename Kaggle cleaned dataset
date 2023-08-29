@@ -1,0 +1,56 @@
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+df = pd.read_csv("/Users/emilylin/Downloads/state_crime (1).csv")
+
+#dataset containing only years 2013-2019
+df = df.loc[(df['Year'] >= 2013) & (df['Year'] <= 2019)]
+
+#renaming columns
+df.columns = df.columns.str.strip("Data.").str.replace("."," ", regex = True)
+
+# format the population as millions
+df["Population"] = df["Population"] / 1000000
+df["Population"] = df["Population"].map("{:,.2f}M".format)
+
+#checking for any empty cell values
+df.isnull().sum()   #Returns no empty cells 
+
+# indexing values
+index = pd.Index(range(len(df)))
+
+# setting the index column
+df = df.set_index(index)
+
+# duplicates in data frame
+duplicate = df[df.duplicated()]
+
+print(len(duplicate))  #total of 0 duplicates returned 
+
+#filtered data values to check for outliers
+df1 = df.iloc[1:].drop(['State','Year','Population'], axis = 1)
+
+#checking for any outliers using interquartile range
+def outliers(df1, vs):
+    Q1 = df1[vs].quantile(0.25)
+    Q3 = df1[vs].quantile(0.75)
+    IQR = Q3 - Q1
+    
+    lower = Q1 - IQR*1.5
+    upper = Q3 + IQR*1.5
+    
+    outside = df1.index[(df1[vs] < lower) | (df1[vs] > upper)] 
+    return outside
+
+#empty list that contains the outlier indices as elements
+index_list = []
+for values in df1.columns:
+    index_list.extend(outliers(df1, values))
+    
+#dataset removed outliers 
+def remove(df1, outside):
+    outside = sorted(set(outside))
+    df1 = df1.drop(outside)
+    return df1
+df_cleaned = remove(df1, index_list)
